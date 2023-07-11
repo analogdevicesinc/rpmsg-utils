@@ -1,0 +1,4 @@
+*.o
+rpmsgtest
+rpmsgbind
+.vscode
