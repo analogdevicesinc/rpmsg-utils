@@ -1,4 +1,7 @@
-
+/* SPDX-License-Identifier: BSD-3-Clause
+ *
+ * Copyright 2023, Analog Devices, Inc. All rights reserved. 
+*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -231,8 +234,8 @@ int main(int argc, char *argv[]){
 	//binf/unbind device at mass
 	for (i=0;i<ep_num;i++) {
 		char device_name[512];
-		snprintf(device_name, 512, "%s%d", rpmsg_device_prefix, start_addr+i);
-		printf("Try to bind/unbind %s device", device_name);
+		snprintf(device_name, 512, "%s%d", rpmsg_device_prefix, start_ep+i);
+		printf("Try to bind/unbind %s device\n", device_name);
 		if(bind){
 			ret = rpmsg_bind(device_name, (unsigned int)start_addr+i);
 		}else{

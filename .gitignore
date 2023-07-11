@@ -1,4 +1,4 @@
 *.o
-rpmsgtest
-rpmsgbind
+rpmsg-xmit-p
+rpmsg-bind-chardev
 .vscode

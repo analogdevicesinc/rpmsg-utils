@@ -3,25 +3,23 @@ PROJECT2=rpmsgbind
 SDK_PATH=
 CC_PREFIX=
 CC=gcc
-LDFLAGS=
-CFLAGS=-O2
+LDFLAGS=-pthread
+CFLAGS=-Wall
 SOURCES= #$(wildcard *.c)
 OBJECTS=$(SOURCES:.c=.o)
  
-all: $(OBJECTS) rpmsgtest rpmsgbind
+all: $(OBJECTS) rpmsg-xmit-p rpmsg-bind-chardev
  
 rpmsgtest: rpmsgtest.c
-	$(CC) $(OBJECTS) $(CFLAGS) rpmsgtest.c -o rpmsgtest
+	$(CC) $(OBJECTS) $(CFLAGS) $(LDFLAGS) rpmsg-xmit-p.c -o rpmsg-xmit-p 
 
 rpmsgbind: rpmsgbind.c
-	$(CC) $(OBJECTS) $(CFLAGS) rpmsgbind.c -o rpmsgbind
-
-
+	$(CC) $(OBJECTS) $(CFLAGS) rpmsg-bind-chardev.c -o rpmsg-bind-chardev
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $<
 
 clean:
-	rm -rfv rpmsgtest
-	rm -rfv rpmsgbind
+	rm -rfv rpmsg-xmit-p
+	rm -rfv rpmsg-bind-chardev
 	rm -rfv *.o
