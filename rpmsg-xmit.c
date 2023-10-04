@@ -1,251 +1,114 @@
-#include <stdlib.h>
+/* SPDX-License-Identifier: BSD-3-Clause
+ *
+ * Copyright 2023, Analog Devices, Inc. All rights reserved. 
+*/
+
 #include <stdio.h>
-#include <string.h>
-#include <stdint.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <errno.h>
-#include <time.h>
 #include <signal.h>
 
-#include <pthread.h>
+#define DEFAULT_MSG_LEN 256
+#define MAX_MSG_LEN (512-16) /* The default size of rpmsg buffer is 512B with 16B header */
 
-#define MAX_THREADS 32
-#define RPMSG_CHARDEV_DRIVER "rpmsg_chrdev"
-#define RPMSG_CHARDEV_CTRL "rpmsg_ctrl"
-#define MAX_PACKET_SIZE 496
+int fd = 0;
+char msg_to_send[MAX_MSG_LEN];
+char msg_received[MAX_MSG_LEN];
+ssize_t msglen = DEFAULT_MSG_LEN;
 
-
-typedef struct thread_params {
-	int packet_size;
-	int total_data;
-	char *dev_prefix;
-	int dev_num;
-	float mbsec;
-} thread_params;
-
-static unsigned char data_buf[MAX_PACKET_SIZE];
-static unsigned char read_data_buf[MAX_PACKET_SIZE];
-static int verbose=0;
-
-int timespec_diff(struct timespec *ts1, struct  timespec *ts2, struct timespec *tdiff) {
-	int sec=0,nsec=0;
-	sec = ts2->tv_sec - ts1->tv_sec;
-	nsec = ts2->tv_nsec - ts1->tv_nsec;
-	if (nsec<0) {
-		nsec += 1000000000;
-		sec -= 1;
-	}
-	tdiff->tv_sec = sec;
-	tdiff->tv_nsec = nsec;
-
-	return 0;
+void signal_handler(__attribute__((unused)) const int signum) {
+    exit(EXIT_FAILURE);
 }
 
-void sig_handler(int signo)
+void exit_cleanup(void){
+	if(fd) close(fd);
+}
+
+void print_help(void){
+	fprintf(stderr, "Usage: rpmsg-xmit [-n msglen ] <device_file>\n");
+	fprintf(stderr, "  -n 	message length send at a time to device file, default msglen=%d\n", DEFAULT_MSG_LEN);
+}
+
+int main (int argc, char **argv)
 {
-    switch(signo)
-    {
-        case SIGINT:
-        default:
-            printf("Unknown signal %d\n",signo);
-    }
-    exit(0);
-}
-
-void *run_xmit_thread(void *data) {
-	int total_sent=0;
-	int total_recv=0;
-	int fd;
-	int ret;
-	int errnum;
-	thread_params *tp  = (thread_params *)data;
-	struct timespec ts_s, ts_e, ts_diff;
-	double mbsec=0.0,d_sec;
-
-	const int max_path_len=128;
-	char device_path[max_path_len];
-	//example of names
-	//
-	snprintf(device_path, max_path_len, "/dev/rpmsg%d",tp->dev_num);
-
-
-	printf("Opening file %s\n", device_path);
-
-	
-	fd = open(device_path, O_RDWR);
-	if (fd == -1) {
-		errnum = errno;
-
-		printf("!Cant open file %s, return code %d\n", device_path, fd);
-		printf("Error %d: %s\n",  errnum, strerror(errnum));
-		return NULL;
-	};
-
-	printf("Drain ... \n");
-
-
-	printf("Loop is running ... thread-%d\n", tp->dev_num);
-	clock_gettime(CLOCK_BOOTTIME, &ts_s);
-	while (total_sent < tp->total_data) {
-		int ret = write(fd, data_buf, tp->packet_size);
-		if (ret == -1) {
-			printf("Thread-%d: Error writing data to %s\n", tp->dev_num, device_path);
-			break;
-		}
-		total_sent += ret;
-		
-		ret = read(fd, data_buf, tp->packet_size);
-		if (ret == -1) {
-			printf("Read error %s\n", device_path);
-		}
-		total_recv += ret;
-		if (verbose) {
-			printf(".");
-		}
-	}
-	clock_gettime(CLOCK_BOOTTIME, &ts_e);
-
-	close(fd);
-
-	
-	timespec_diff( &ts_s, &ts_e, &ts_diff);
-	d_sec = ts_diff.tv_sec + ts_diff.tv_nsec/1000000000.0f;
-	//printf("dsec %f, %d %d\n", d_sec, ts_diff.tv_sec, ts_diff.tv_nsec);
-	mbsec = total_sent/d_sec;
-	printf("Thread-%d stoped, total sent %d bytes, total recv %d, total sec %d.%d, tx bytes per sec %f\n",tp->dev_num, total_sent, total_recv, ts_diff.tv_sec, ts_diff.tv_nsec, mbsec);
-	tp->mbsec = mbsec;
-} 
-
-void usage() {
-	printf("Usage: rpmsg-xmit-p\n"\
-	"-p device prefix\n"\
-	"-n number of endpoints\n"\
-	"-e start endpoint\n"\
-	"-a start address\n" \
-	"-s packet size\n"\
-	"-t total data send\n"
-	"-v verbose\n"
-	"ver 0.3 \n"\
-	"\n");
-	exit(1);
-}
-
-int sanitize_int(char *optarg) {
-	char *end;
-	errno = 0;
-	int ret  = strtol(optarg, &end, 0);
-	if ((end != (optarg + strlen(optarg))) || (errno != 0)) {
-		fprintf(stderr, "Wrong `addr` format\n");
-		usage();
-	}
-	if (ret < 0){
-		fprintf(stderr, "Wrong `addr` format: must be positive\n");
-	}
-	return ret;
-}
-
-int main(int argc, char **argv) {
-
 	int c;
-	int i;
+	char *end;
+	ssize_t len;
+	opterr = 0;
 
-	char *arg_prefix=NULL;
-	int arg_start_ep=-1;
-	//int arg_start_addr=-1;
-	int arg_ep_num=1;
-	int arg_packet_size=1;
-	int arg_total_data=1;
-	float total_bw=0.0f;
+	signal(SIGTERM, signal_handler);
+	signal(SIGINT, signal_handler);
+	atexit(exit_cleanup);
 
-	pthread_t rpmsg_thread[MAX_THREADS];
-	int thread_id[MAX_THREADS];
-	thread_params params[MAX_THREADS];
-
-
-	if (signal(SIGINT,sig_handler) == SIG_ERR)//SHOULD DO FOR ALL threads
-    {
-        printf("cannot register signal handler\n");
-        exit(1);
-    }
-
-	memset(data_buf, 0x00, MAX_PACKET_SIZE);
-
-
-
-
-	while((c = getopt(argc, argv, "p:n:e:a:s:t:v")) != -1) {
-		switch (c) {
-			case 'p':
-				arg_prefix = optarg;
-				break;
+	while ((c = getopt (argc, argv, "n:h")) != -1)
+		switch (c)
+			{
 			case 'n':
-				arg_ep_num = sanitize_int(optarg);
+				msglen = strtol(optarg, &end, 10);
+				if (*end !=0 ){
+					fprintf(stderr, "Wrong format: msglen must be decimal\n");
+					print_help();
+					exit(EXIT_FAILURE);
+				}
+				if (msglen < 0){
+					fprintf(stderr, "Wrong format: msglen must be positive\n");
+					print_help();
+					exit(EXIT_FAILURE);
+				}
 				break;
-			case 'e':
-				arg_start_ep = sanitize_int(optarg);
-				break;	
-			case 't':
-				arg_total_data = sanitize_int(optarg);
+			case 'h':
+				print_help();
+				exit(EXIT_SUCCESS);
 				break;
-			case 's':
-				arg_packet_size = sanitize_int(optarg);
-				break;
-			//case 'a':
-			//	arg_start_addr = sanitize_int(optarg);
-			//	break;
-			case 'v':
-				verbose = 1;
-				break;
+			case '?':
 			default:
-				printf("Unknown command line option\n");
-				usage();
+				exit(EXIT_FAILURE);
+			}
+
+	if (optind >= argc){
+		fprintf(stderr, "Device file argument missing\n");
+		print_help();
+		exit(EXIT_FAILURE);
+	}
+
+	fd = open(argv[optind], O_RDWR);
+	if(fd < 0){
+		perror(argv[optind]);
+		exit(EXIT_FAILURE);
+	}
+
+	while(1){
+		len = fread(msg_to_send, msglen, 1, stdin);
+		if(len == 0){
+			if(feof(stdin)){
+				exit(EXIT_SUCCESS);
+			}
+			if(ferror(stdin)){
+				perror("Error: Read from stdin failed");
+				exit(EXIT_FAILURE);
+			}
+			perror("Unknown error: Read from stdin failed");
+			exit(EXIT_FAILURE);
+		}
+
+		len = write(fd, msg_to_send, msglen);
+		len = read(fd, msg_received, MAX_MSG_LEN);
+
+		len = fwrite(msg_received, len, 1, stdout);
+		if(len == 0 ){
+			if(feof(stdout)){
+				exit(EXIT_SUCCESS);
+			}
+			if(ferror(stdout)){
+				perror("Error: Write to stdout failed");
+				exit(EXIT_FAILURE);
+			}
+			perror("Unknown error: Write to stdout failed");
+			exit(EXIT_FAILURE);
 		}
 	}
 
-	if (arg_ep_num > MAX_THREADS) {
-		printf("Maximum supported thread number 32\n");
-		exit(1);
-	}
-
-	if (arg_packet_size > MAX_PACKET_SIZE) {
-		printf("Max packet size %d\n", MAX_PACKET_SIZE);
-		exit(1);
-	}
-
-	printf("Start\n");
-
-	
-
-	//create all threads
-	for (i=0; i<arg_ep_num;i++) {
-		
-		params[i].total_data = arg_total_data;
-		params[i].packet_size = arg_packet_size;
-		params[i].dev_prefix = arg_prefix;
-		params[i].dev_num = arg_start_ep + i;
-
-		printf("set dev num to %d\n", params[i].dev_num);
-
-		int rc = thread_id[i] = pthread_create( &rpmsg_thread[i], NULL, &run_xmit_thread, (void *)&params[i]);
-		if (rc != 0) {
-			printf("Failed to start thread %d\n", i);
-		}
-	}
-
-
-
-	//join all threads
-	for (i=0; i<arg_ep_num; i++) {
-		pthread_join(rpmsg_thread[i], NULL);
-	}
-
-	for (i=0; i<arg_ep_num; i++) {
-		total_bw += params[i].mbsec;
-	}
-	printf("Total %d channel transfer per sec %f\n",arg_ep_num, total_bw);
-
+	exit(EXIT_SUCCESS);
 	return 0;
 }
-
-
