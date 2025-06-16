@@ -224,3 +224,53 @@ Set packet size 496
 rpmsg-xmit -p /dev/rpmsg -n 1 -e 0 -t 1000000 -s 496
 ```
 
+## rpmsg-xmit-p-usr_data
+
+### Load firmwar for SHARC
+```
+echo stop > /sys/class/remoteproc/remoteproc0/state
+echo adi_adsp_core1_fw.ldr > /sys/class/remoteproc/remoteproc0/firmware
+echo start > /sys/class/remoteproc/remoteproc0/state
+```
+
+### Bind endpoints with RPMsg
+
+```
+rpmsg-bind-chardev -p virtio0.sharc-chew_mem.-1. -n 1 -e 33 -s 100
+```
+
+### Run userspace application
+
+```
+root@adsp-sc598-som-ezkit:~# rpmsg-xmit-p-usr_data -h
+Usage: rpmsg-xmit-p
+-p device prefix
+-f input file
+-n number of endpoints
+-e start endpoint
+-a start address
+-s packet size
+-t total data send
+-v verbose
+-h help
+ver 0.3
+
+```
+
+Example:
+
+```
+rpmsg-xmit-p-usr_data -p /dev/rpmsg -f input.dat -n 1 -e 0 -s 496
+```
+
+This sends data from input.dat file to endpoint 0 with packet size of 496 bytes.
+Output is then read into */root/output.dat*.
+
+NOTE: This is currently a hardcoded path and hence, it needs to be ensured that
+`/root/` exists and is writable.
+
+For verbose output use -v flag:
+
+```
+rpmsg-xmit-p-usr_data -p /dev/rpmsg -f /home/input.dat -n 1 -e 0 -s 496 -v
+```
