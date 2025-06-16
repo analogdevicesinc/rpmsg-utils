@@ -7,10 +7,17 @@ Example how to benchmark rpmsg endpoints. Linux part. SHARC firmware is provided
 
 ## Compile
 
-There is no extra dependencies that required. 
+Dependencies: 
+
+* arm64 gcc compiler (aarch64-linux-gnu-gcc) for cortex A55 boards
+* arm32 gcc compiler (arm-linux-gnueabi-gcc) for cortex A5 boards
 
 ```bash
-make
+make ARCH=<arm/aarch64> CC=<gcc compiler name>
+```
+Example, for SC598 (arm64, cortex A55):
+```
+make CC=aarch64-linux-gnu-gcc ARCH=aarch64
 ```
 
 ## Load firmwar for SHARC
