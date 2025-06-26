@@ -12,7 +12,7 @@ CFLAGS=-Wall
 SOURCES= #$(wildcard *.c)
 OBJECTS=$(SOURCES:.c=.o)
  
-all: $(OBJECTS) rpmsg-xmit rpmsg-xmit-p rpmsg-bind-chardev
+all: $(OBJECTS) rpmsg-xmit rpmsg-xmit-p rpmsg-bind-chardev rpmsg-xmit-p-usr_data
 
 
 %.o: %.c
@@ -22,4 +22,5 @@ clean:
 	rm -rfv rpmsg-xmit
 	rm -rfv rpmsg-xmit-p
 	rm -rfv rpmsg-bind-chardev
+	rm -rfv rpmsg-xmit-p-usr_data
 	rm -rfv *.o
