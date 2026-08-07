@@ -62,7 +62,6 @@ void *run_xmit_thread(void *data) {
 	int total_sent=0;
 	int total_recv=0;
 	int fd;
-	int ret;
 	int errnum;
 	thread_params *tp  = (thread_params *)data;
 	struct timespec ts_s, ts_e, ts_diff;
