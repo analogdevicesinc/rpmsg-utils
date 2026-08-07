@@ -120,6 +120,8 @@ void *run_xmit_thread(void *data) {
 	mbsec = total_sent/d_sec;
 	printf("Thread-%d stopped, total sent %d bytes, total recv %d, total sec %lld.%ld, tx bytes per sec %f\n",tp->dev_num, total_sent, total_recv, (long long)ts_diff.tv_sec, (long)ts_diff.tv_nsec, mbsec);
 	tp->mbsec = mbsec;
+
+	return NULL;
 } 
 
 void usage() {
