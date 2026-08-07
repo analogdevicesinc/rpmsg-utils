@@ -223,4 +223,3 @@ Set packet size 496
 ```
 rpmsg-xmit -p /dev/rpmsg -n 1 -e 0 -t 1000000 -s 496
 ```
-

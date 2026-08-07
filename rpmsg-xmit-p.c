@@ -30,7 +30,6 @@ typedef struct thread_params {
 } thread_params;
 
 static unsigned char data_buf[MAX_PACKET_SIZE];
-static unsigned char read_data_buf[MAX_PACKET_SIZE];
 static int verbose=0;
 
 int timespec_diff(struct timespec *ts1, struct  timespec *ts2, struct timespec *tdiff) {
@@ -62,7 +61,6 @@ void *run_xmit_thread(void *data) {
 	int total_sent=0;
 	int total_recv=0;
 	int fd;
-	int ret;
 	int errnum;
 	thread_params *tp  = (thread_params *)data;
 	struct timespec ts_s, ts_e, ts_diff;
@@ -118,8 +116,10 @@ void *run_xmit_thread(void *data) {
 	d_sec = ts_diff.tv_sec + ts_diff.tv_nsec/1000000000.0f;
 	//printf("dsec %f, %d %d\n", d_sec, ts_diff.tv_sec, ts_diff.tv_nsec);
 	mbsec = total_sent/d_sec;
-	printf("Thread-%d stoped, total sent %d bytes, total recv %d, total sec %d.%d, tx bytes per sec %f\n",tp->dev_num, total_sent, total_recv, ts_diff.tv_sec, ts_diff.tv_nsec, mbsec);
+	printf("Thread-%d stopped, total sent %d bytes, total recv %d, total sec %lld.%ld, tx bytes per sec %f\n",tp->dev_num, total_sent, total_recv, (long long)ts_diff.tv_sec, (long)ts_diff.tv_nsec, mbsec);
 	tp->mbsec = mbsec;
+
+	return NULL;
 } 
 
 void usage() {
@@ -252,5 +252,3 @@ int main(int argc, char **argv) {
 
 	return 0;
 }
-
-
