@@ -118,7 +118,7 @@ void *run_xmit_thread(void *data) {
 	d_sec = ts_diff.tv_sec + ts_diff.tv_nsec/1000000000.0f;
 	//printf("dsec %f, %d %d\n", d_sec, ts_diff.tv_sec, ts_diff.tv_nsec);
 	mbsec = total_sent/d_sec;
-	printf("Thread-%d stoped, total sent %d bytes, total recv %d, total sec %d.%d, tx bytes per sec %f\n",tp->dev_num, total_sent, total_recv, ts_diff.tv_sec, ts_diff.tv_nsec, mbsec);
+	printf("Thread-%d stopped, total sent %d bytes, total recv %d, total sec %lld.%ld, tx bytes per sec %f\n",tp->dev_num, total_sent, total_recv, (long long)ts_diff.tv_sec, (long)ts_diff.tv_nsec, mbsec);
 	tp->mbsec = mbsec;
 } 
 
