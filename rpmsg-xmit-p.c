@@ -30,7 +30,6 @@ typedef struct thread_params {
 } thread_params;
 
 static unsigned char data_buf[MAX_PACKET_SIZE];
-static unsigned char read_data_buf[MAX_PACKET_SIZE];
 static int verbose=0;
 
 int timespec_diff(struct timespec *ts1, struct  timespec *ts2, struct timespec *tdiff) {
